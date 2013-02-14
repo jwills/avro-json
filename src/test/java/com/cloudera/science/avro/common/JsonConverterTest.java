@@ -23,8 +23,6 @@ import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableList;
-
 public class JsonConverterTest {
 
   private static Schema.Field sf(String name, Schema schema) {
