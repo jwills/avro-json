@@ -23,16 +23,22 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
+import com.cloudera.science.avro.common.SchemaLoader;
+
 /**
  *
  */
 public class AvroAsJSONInputFormat<T> extends FileInputFormat<Text, Text> {
+  public static final String SCHEMA_LITERAL = "input.schema.literal";
+  public static final String SCHEMA_URL = "input.schema.url";
+  private static final SchemaLoader SCHEMA_LOADER = new SchemaLoader(SCHEMA_LITERAL, SCHEMA_URL);
+  
   private Schema schema;
   @Override
   public RecordReader<Text, Text> createRecordReader(InputSplit split, TaskAttemptContext context)
       throws IOException, InterruptedException {
     if (schema == null) {
-      // Need to fetch a schema
+      schema = SCHEMA_LOADER.load(context.getConfiguration());
     }
     return new AvroAsJSONRecordReader<T>(schema);
   }
