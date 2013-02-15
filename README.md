@@ -2,12 +2,13 @@ To Build:
 
 	mvn clean package
 
-Usage:
+Hive Usage:
 
-	add jar avro-json-serde-1.0-SNAPSHOT.jar;
-	FROM DOCTORS
-	SELECT TRANSFORM(*)
-	ROW FORMAT SERDE 'com.cloudera.science.avro.serde.AvroJSONSerde'
+	add jar avro-json-1.0-SNAPSHOT.jar;
+	CREATE TABLE doctors (foo string)
+	ROW FORMAT SERDE 'com.cloudera.science.avro.serde.AvroAsJSONSerde'
+	INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat'
+	OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'
 	WITH SERDEPROPERTIES
 	('avro.schema.literal'='{
 	  "namespace": "testing.hive.avro.serde",
@@ -36,6 +37,19 @@ Usage:
 	      "default":"fishfingers and custard"
 	    }
 	  ]
-	}')
-	USING '/bin/cat';
+	}');
+	DESCRIBE doctors;
+	SELECT * from doctors;
+	SELECT get_json_object(foo, '$.number') from doctors;
 
+Streaming Usage:
+
+	hadoop jar hadoop-streaming-2.0.0-mr1-cdh4.1.2.jar \
+	-libjars avro-json-1.0-SNAPSHOT.jar \
+	-Dinput.schema.url=file:///doctors.avsc \
+	-Doutput.schema.url=file:///doctors.avsc \
+	-inputformat com.cloudera.science.avro.streaming.AvroAsJSONInputFormat \
+	-outputformat com.cloudera.science.avro.streaming.AvroAsJSONOutputFormat \
+	-mapper '/bin/cat' \
+	-input doctors.avro \
+	-output foo
