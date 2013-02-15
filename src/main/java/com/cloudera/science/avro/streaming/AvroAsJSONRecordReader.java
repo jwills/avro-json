@@ -15,31 +15,31 @@
 package com.cloudera.science.avro.streaming;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.FileReader;
 import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 
-public class AvroAsJSONRecordReader<T> implements RecordReader<Text, Text> {
+public class AvroAsJSONRecordReader implements RecordReader<Text, Text> {
 
-  private FileReader<T> reader;
-  private T datum;
+  private FileReader<GenericRecord> reader;
+  private GenericRecord datum;
   private long start;
   private long end;
   
   public AvroAsJSONRecordReader(Schema schema, JobConf job, FileSplit split) throws IOException {
     this(DataFileReader.openReader(new FsInput(split.getPath(), job),
-        new GenericDatumReader<T>(schema)), split);
+        new GenericDatumReader<GenericRecord>(schema)), split);
   }
 
-  protected AvroAsJSONRecordReader(FileReader<T> reader, FileSplit split)
+  protected AvroAsJSONRecordReader(FileReader<GenericRecord> reader, FileSplit split)
       throws IOException {
     this.reader = reader;
     reader.sync(split.getStart());
@@ -82,21 +82,7 @@ public class AvroAsJSONRecordReader<T> implements RecordReader<Text, Text> {
       return false;
     }
     datum = reader.next(datum);
-    if (datum instanceof ByteBuffer) {
-      ByteBuffer b = (ByteBuffer) datum;
-      if (b.hasArray()) {
-        int offset = b.arrayOffset();
-        int start = b.position();
-        int length = b.remaining();
-        key.set(b.array(), offset + start, offset + start + length);
-      } else {
-        byte[] bytes = new byte[b.remaining()];
-        b.duplicate().get(bytes);
-        key.set(bytes);
-      }
-    } else {
-      key.set(datum.toString());
-    }
+    key.set(datum.toString());
     return true;
   }
 }

@@ -20,6 +20,7 @@ import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeStats;
@@ -38,17 +39,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class AvroAsJSONSerde implements SerDe {
+  // Follow convention of AvroSerDe
   public static final String SCHEMA_LITERAL = "avro.schema.literal";
   public static final String SCHEMA_URL = "avro.schema.url";
-  
-  private static ObjectInspector OBJECT_INSPECTOR = ObjectInspectorFactory.getStandardStructObjectInspector(
-      ImmutableList.of("json"),
-      ImmutableList.<ObjectInspector>of(PrimitiveObjectInspectorFactory.javaStringObjectInspector));
   
   private Schema schema;
   private JsonConverter converter;
   private AvroGenericRecordWritable agrw = new AvroGenericRecordWritable();
   private List<Object> row = Lists.newArrayList();
+  private ObjectInspector oi;
   
   @Override
   public void initialize(Configuration conf, Properties tbl) throws SerDeException {
@@ -60,6 +59,15 @@ public class AvroAsJSONSerde implements SerDe {
     }
     this.converter = new JsonConverter(schema);
     row.add("");
+    
+    String colName = tbl.getProperty(Constants.LIST_COLUMNS);
+    if (colName == null || colName.isEmpty()) {
+      colName = "json"; // use a default
+    }
+    
+    this.oi = ObjectInspectorFactory.getStandardStructObjectInspector(
+        ImmutableList.of(colName),
+        ImmutableList.<ObjectInspector>of(PrimitiveObjectInspectorFactory.javaStringObjectInspector));
   }
 
   @Override
@@ -70,7 +78,7 @@ public class AvroAsJSONSerde implements SerDe {
 
   @Override
   public ObjectInspector getObjectInspector() throws SerDeException {
-    return OBJECT_INSPECTOR;
+    return oi;
   }
 
   @Override

@@ -30,7 +30,7 @@ import com.cloudera.science.avro.common.SchemaLoader;
 /**
  *
  */
-public class AvroAsJSONInputFormat<T> extends FileInputFormat<Text, Text> {
+public class AvroAsJSONInputFormat extends FileInputFormat<Text, Text> {
   public static final String SCHEMA_LITERAL = "input.schema.literal";
   public static final String SCHEMA_URL = "input.schema.url";
   
@@ -43,6 +43,6 @@ public class AvroAsJSONInputFormat<T> extends FileInputFormat<Text, Text> {
       SchemaLoader loader = new SchemaLoader(job);
       schema = loader.load(job.get(SCHEMA_LITERAL), job.get(SCHEMA_URL));
     }
-    return new AvroAsJSONRecordReader<T>(schema, job, (FileSplit) split);
+    return new AvroAsJSONRecordReader(schema, job, (FileSplit) split);
   }
 }
