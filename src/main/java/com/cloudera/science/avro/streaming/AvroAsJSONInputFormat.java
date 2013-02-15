@@ -17,6 +17,7 @@ package com.cloudera.science.avro.streaming;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -31,14 +32,16 @@ import com.cloudera.science.avro.common.SchemaLoader;
 public class AvroAsJSONInputFormat<T> extends FileInputFormat<Text, Text> {
   public static final String SCHEMA_LITERAL = "input.schema.literal";
   public static final String SCHEMA_URL = "input.schema.url";
-  private static final SchemaLoader SCHEMA_LOADER = new SchemaLoader(SCHEMA_LITERAL, SCHEMA_URL);
   
   private Schema schema;
+  
   @Override
   public RecordReader<Text, Text> createRecordReader(InputSplit split, TaskAttemptContext context)
       throws IOException, InterruptedException {
     if (schema == null) {
-      schema = SCHEMA_LOADER.load(context.getConfiguration());
+      Configuration conf = context.getConfiguration();
+      SchemaLoader loader = new SchemaLoader(conf);
+      schema = loader.load(conf.get(SCHEMA_LITERAL), conf.get(SCHEMA_URL));
     }
     return new AvroAsJSONRecordReader<T>(schema);
   }

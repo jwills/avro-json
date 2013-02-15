@@ -37,13 +37,11 @@ import com.cloudera.science.avro.common.SchemaLoader;
 /**
  *
  */
-public class AvroAsJSONOutputFormat<T> extends FileOutputFormat<Text, Text> {
+public class AvroAsJSONOutputFormat extends FileOutputFormat<Text, Text> {
   public static final String SCHEMA_LITERAL = "output.schema.literal";
   public static final String SCHEMA_URL = "output.schema.url";
   public static final String READ_KEY = "output.read.key";
   
-  private static final SchemaLoader SCHEMA_LOADER = new SchemaLoader(SCHEMA_LITERAL, SCHEMA_URL);
-
   private Schema schema;
   private JsonConverter converter;
   private boolean readKey = true;
@@ -53,7 +51,8 @@ public class AvroAsJSONOutputFormat<T> extends FileOutputFormat<Text, Text> {
       throws IOException, InterruptedException {
     Configuration conf = job.getConfiguration();
     if (schema == null) {
-      this.schema = SCHEMA_LOADER.load(conf);
+      SchemaLoader loader = new SchemaLoader(conf);
+      this.schema = loader.load(conf.get(SCHEMA_LITERAL), conf.get(SCHEMA_URL));
       this.converter = new JsonConverter(schema);
       this.readKey = conf.getBoolean(READ_KEY, true);
     }
@@ -75,6 +74,6 @@ public class AvroAsJSONOutputFormat<T> extends FileOutputFormat<Text, Text> {
     Path path = getDefaultWorkFile(job, AvroOutputFormat.EXT);
     writer.create(schema, path.getFileSystem(conf).create(path));
     
-    return new AvroAsJSONRecordWriter<T>(writer, converter, readKey);
+    return new AvroAsJSONRecordWriter(writer, converter, readKey);
   }
 }

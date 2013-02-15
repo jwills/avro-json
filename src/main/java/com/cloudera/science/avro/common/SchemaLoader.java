@@ -28,31 +28,28 @@ import org.apache.hadoop.fs.Path;
  *
  */
 public class SchemaLoader {
-  private final String literalSchema;
-  private final String urlSchema;
   
-  public SchemaLoader(String literalSchema, String urlSchema) {
-    this.literalSchema = literalSchema;
-    this.urlSchema = urlSchema;
+  private final Configuration conf;
+  
+  public SchemaLoader(Configuration conf) {
+    this.conf = conf;
   }
   
-  public Schema load(Configuration conf) throws IOException {
+  public Schema load(String schemaJson, String schemaUrl) throws IOException {
     Schema.Parser parser = new Schema.Parser();
-    String schemaJson = conf.get(literalSchema);
     if (schemaJson != null && !"none".equals(schemaJson)) {
       return parser.parse(schemaJson);
     } else {
-      String url = conf.get(urlSchema);
-      if (url == null || "none".equals(url)) {
-        throw new IllegalArgumentException(String.format(
-            "Neither '%s' nor '%s' specified in Configuration", literalSchema, urlSchema));
+      if (schemaUrl == null || "none".equals(schemaUrl)) {
+        throw new IllegalArgumentException(
+            "Neither schemaJson nor schemaUrl specified to SchemaLoader");
       }
       
-      if (url.toLowerCase().startsWith("hdfs://")) {
+      if (schemaUrl.toLowerCase().startsWith("hdfs://")) {
         FileSystem fs = FileSystem.get(conf);
         FSDataInputStream input = null;
         try {
-          input = fs.open(new Path(url));
+          input = fs.open(new Path(schemaUrl));
           return parser.parse(input);
         } finally {
           if (input != null) {
@@ -62,7 +59,7 @@ public class SchemaLoader {
       } else {
         InputStream is = null;
         try {
-          is = new URL(url).openStream();
+          is = new URL(schemaUrl).openStream();
           return parser.parse(is);
         } finally {
           if (is != null) {

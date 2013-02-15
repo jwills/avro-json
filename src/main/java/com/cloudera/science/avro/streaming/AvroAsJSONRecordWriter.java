@@ -24,7 +24,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import com.cloudera.science.avro.common.JsonConverter;
 
-public class AvroAsJSONRecordWriter<T> extends RecordWriter<Text, Text> {
+public class AvroAsJSONRecordWriter extends RecordWriter<Text, Text> {
 
   private final DataFileWriter<GenericRecord> writer;
   private final JsonConverter converter;
