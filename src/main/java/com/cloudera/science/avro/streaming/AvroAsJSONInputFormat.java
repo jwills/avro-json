@@ -17,12 +17,13 @@ package com.cloudera.science.avro.streaming;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.mapred.Reporter;
 
 import com.cloudera.science.avro.common.SchemaLoader;
 
@@ -36,13 +37,12 @@ public class AvroAsJSONInputFormat<T> extends FileInputFormat<Text, Text> {
   private Schema schema;
   
   @Override
-  public RecordReader<Text, Text> createRecordReader(InputSplit split, TaskAttemptContext context)
-      throws IOException, InterruptedException {
+  public RecordReader<Text, Text> getRecordReader(InputSplit split, JobConf job, Reporter reporter)
+      throws IOException {
     if (schema == null) {
-      Configuration conf = context.getConfiguration();
-      SchemaLoader loader = new SchemaLoader(conf);
-      schema = loader.load(conf.get(SCHEMA_LITERAL), conf.get(SCHEMA_URL));
+      SchemaLoader loader = new SchemaLoader(job);
+      schema = loader.load(job.get(SCHEMA_LITERAL), job.get(SCHEMA_URL));
     }
-    return new AvroAsJSONRecordReader<T>(schema);
+    return new AvroAsJSONRecordReader<T>(schema, job, (FileSplit) split);
   }
 }

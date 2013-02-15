@@ -19,12 +19,12 @@ import java.io.IOException;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.RecordWriter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapred.RecordWriter;
+import org.apache.hadoop.mapred.Reporter;
 
 import com.cloudera.science.avro.common.JsonConverter;
 
-public class AvroAsJSONRecordWriter extends RecordWriter<Text, Text> {
+public class AvroAsJSONRecordWriter implements RecordWriter<Text, Text> {
 
   private final DataFileWriter<GenericRecord> writer;
   private final JsonConverter converter;
@@ -37,13 +37,12 @@ public class AvroAsJSONRecordWriter extends RecordWriter<Text, Text> {
   }
   
   @Override
-  public void write(Text key, Text value) throws IOException,
-      InterruptedException {
+  public void write(Text key, Text value) throws IOException {
     writer.append(converter.convert(readKey ? key.toString() : value.toString()));
   }
 
   @Override
-  public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+  public void close(Reporter reporter) throws IOException {
     writer.close();
   }
 }

@@ -23,41 +23,61 @@ import org.apache.avro.file.FileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordReader;
 
-public class AvroAsJSONRecordReader<T> extends RecordReader<Text, Text> {
+public class AvroAsJSONRecordReader<T> implements RecordReader<Text, Text> {
 
-  private final Schema schema;
-  private final Text key = new Text();
-  private final Text value = new Text();
-  
   private FileReader<T> reader;
   private T datum;
   private long start;
   private long end;
   
-  public AvroAsJSONRecordReader(Schema schema) {
-    this.schema = schema;
+  public AvroAsJSONRecordReader(Schema schema, JobConf job, FileSplit split) throws IOException {
+    this(DataFileReader.openReader(new FsInput(split.getPath(), job),
+        new GenericDatumReader<T>(schema)), split);
   }
-  
-  @Override
-  public void initialize(InputSplit split, TaskAttemptContext context) throws IOException,
-      InterruptedException {
-    FileSplit fs = (FileSplit) split;
-    this.reader = DataFileReader.openReader(
-        new FsInput(fs.getPath(), context.getConfiguration()),
-        new GenericDatumReader<T>(schema));
-    reader.sync(fs.getStart());
+
+  protected AvroAsJSONRecordReader(FileReader<T> reader, FileSplit split)
+      throws IOException {
+    this.reader = reader;
+    reader.sync(split.getStart());
     this.start = reader.tell();
-    this.end = fs.getStart() + fs.getLength();
-    key.clear(); // the value is never written
+    this.end = split.getStart() + split.getLength();
+  }
+    
+  @Override
+  public Text createKey() {
+    return new Text();
   }
 
   @Override
-  public boolean nextKeyValue() throws IOException, InterruptedException {
+  public Text createValue() {
+    return new Text();
+  }
+
+  @Override
+  public long getPos() throws IOException {
+    return reader.tell();
+  }
+
+  @Override
+  public float getProgress() throws IOException {
+    if (end == start) {
+      return 0.0f;
+    } else {
+      return Math.min(1.0f, (getPos() - start) / (float)(end - start));
+    }
+  }
+
+  @Override
+  public void close() throws IOException {
+    reader.close();
+  }
+
+  @Override
+  public boolean next(Text key, Text value) throws IOException {
     if (!reader.hasNext() || reader.pastSync(end)) {
       return false;
     }
@@ -78,29 +98,5 @@ public class AvroAsJSONRecordReader<T> extends RecordReader<Text, Text> {
       key.set(datum.toString());
     }
     return true;
-  }
-
-  @Override
-  public Text getCurrentKey() throws IOException, InterruptedException {
-    return key;
-  }
-
-  @Override
-  public Text getCurrentValue() throws IOException, InterruptedException {
-    return value;
-  }
-
-  @Override
-  public float getProgress() throws IOException, InterruptedException {
-    if (end == start) {
-      return 0.0f;
-    } else {
-      return Math.min(1.0f, (reader.tell() - start) / (float)(end - start));
-    }
-  }
-
-  @Override
-  public void close() throws IOException {
-    reader.close();
   }
 }

@@ -24,12 +24,13 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroOutputFormat;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.RecordWriter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordWriter;
+import org.apache.hadoop.util.Progressable;
 
 import com.cloudera.science.avro.common.JsonConverter;
 import com.cloudera.science.avro.common.SchemaLoader;
@@ -47,32 +48,31 @@ public class AvroAsJSONOutputFormat extends FileOutputFormat<Text, Text> {
   private boolean readKey = true;
   
   @Override
-  public RecordWriter<Text, Text> getRecordWriter(TaskAttemptContext job)
-      throws IOException, InterruptedException {
-    Configuration conf = job.getConfiguration();
+  public RecordWriter<Text, Text> getRecordWriter(FileSystem ignored, JobConf job, String name,
+      Progressable progress) throws IOException {
     if (schema == null) {
-      SchemaLoader loader = new SchemaLoader(conf);
-      this.schema = loader.load(conf.get(SCHEMA_LITERAL), conf.get(SCHEMA_URL));
+      SchemaLoader loader = new SchemaLoader(job);
+      this.schema = loader.load(job.get(SCHEMA_LITERAL), job.get(SCHEMA_URL));
       this.converter = new JsonConverter(schema);
-      this.readKey = conf.getBoolean(READ_KEY, true);
+      this.readKey = job.getBoolean(READ_KEY, true);
     }
     
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(
         new GenericDatumWriter<GenericRecord>(schema));
     if (getCompressOutput(job)) {
-      int level = conf.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, AvroOutputFormat.DEFAULT_DEFLATE_LEVEL);
-      String codecName = conf.get(AvroJob.CONF_OUTPUT_CODEC, 
+      int level = job.getInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, AvroOutputFormat.DEFAULT_DEFLATE_LEVEL);
+      String codecName = job.get(AvroJob.CONF_OUTPUT_CODEC, 
           org.apache.avro.file.DataFileConstants.DEFLATE_CODEC);
       CodecFactory codec = codecName.equals(DataFileConstants.DEFLATE_CODEC)
           ? CodecFactory.deflateCodec(level)
           : CodecFactory.fromString(codecName);
       writer.setCodec(codec);
     }
-    writer.setSyncInterval(conf.getInt(AvroOutputFormat.SYNC_INTERVAL_KEY,
+    writer.setSyncInterval(job.getInt(AvroOutputFormat.SYNC_INTERVAL_KEY,
         DataFileConstants.DEFAULT_SYNC_INTERVAL));
     
-    Path path = getDefaultWorkFile(job, AvroOutputFormat.EXT);
-    writer.create(schema, path.getFileSystem(conf).create(path));
+    Path path = FileOutputFormat.getTaskOutputPath(job, name + AvroOutputFormat.EXT);
+    writer.create(schema, path.getFileSystem(job).create(path));
     
     return new AvroAsJSONRecordWriter(writer, converter, readKey);
   }
