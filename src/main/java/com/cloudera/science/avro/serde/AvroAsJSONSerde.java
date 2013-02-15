@@ -37,7 +37,7 @@ import com.cloudera.science.avro.common.SchemaLoader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-public class AvroJSONSerde implements SerDe {
+public class AvroAsJSONSerde implements SerDe {
   public static final String SCHEMA_LITERAL = "avro.schema.literal";
   public static final String SCHEMA_URL = "avro.schema.url";
   
