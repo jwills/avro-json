@@ -23,6 +23,8 @@ import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableList;
+
 public class JsonConverterTest {
 
   private static Schema.Field sf(String name, Schema schema) {
@@ -60,5 +62,24 @@ public class JsonConverterTest {
     String json = "{\"field1\": 1729, \"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
     GenericRecord r = jc.convert(json);
     assertEquals(json, r.toString());
+  }
+  
+  @Test(expected=IllegalArgumentException.class)
+  public void testMissingRequiredField() throws Exception {
+    JsonConverter jc = new JsonConverter(sr(f1, f2, f3Rec));
+    String json = "{\"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
+    GenericRecord r = jc.convert(json);
+  }
+  
+  @Test
+  public void testMissingNullableField() throws Exception {
+    Schema optional = Schema.createUnion(
+        ImmutableList.of(Schema.create(Type.NULL), Schema.create(Type.DOUBLE)));
+    Schema.Field f4 = sf("field4", optional);
+    JsonConverter jc = new JsonConverter(sr(f1, f2, f3Rec, f4));
+    String json = "{\"field1\": 1729, \"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
+    GenericRecord r = jc.convert(json);
+    String expect = "{\"field1\": 1729, \"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}, \"field4\": null}";
+    assertEquals(expect, r.toString());
   }
 }

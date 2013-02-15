@@ -19,40 +19,160 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  *
  */
 public class JsonConverter {
+  private static final Log LOG = LogFactory.getLog(JsonConverter.class);
+  private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(
+      Schema.Type.RECORD, Schema.Type.ARRAY, Schema.Type.MAP,
+      Schema.Type.INT, Schema.Type.LONG, Schema.Type.BOOLEAN,
+      Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.STRING);
+  
   private final ObjectMapper mapper = new ObjectMapper();
   private final Schema baseSchema;
   
   public JsonConverter(Schema schema) {
-    this.baseSchema = schema;
+    this.baseSchema = checkSchema(schema, true);
+  }
+  
+  private Schema checkSchema(Schema schema, boolean mustBeRecord) {
+    if (!mustBeRecord) {
+      if (!SUPPORTED_TYPES.contains(schema.getType())) {
+        throw new IllegalArgumentException("Unsupported type: " + schema.getType());
+      }
+      if (schema.getType() != Schema.Type.RECORD) {
+        return schema;
+      }
+    }
+    for (Schema.Field f : schema.getFields()) {
+      Schema fs = f.schema();
+      if (isNullableSchema(fs)) {
+        fs = getNonNull(fs);
+      }
+      Schema.Type st = fs.getType();
+      if (!SUPPORTED_TYPES.contains(st)) {
+        throw new IllegalArgumentException(String.format(
+            "Unsupported type '%s' for field '%s'", st.toString(), f.name()));
+      }
+      switch (st) {
+      case RECORD:
+        checkSchema(fs, true);
+        break;
+      case MAP:
+        checkSchema(fs.getValueType(), false);
+        break;
+      case ARRAY:
+        checkSchema(fs.getElementType(), false);
+        default:
+          break; // No need to check primitives
+      }
+    }
+    return schema;
   }
   
   public GenericRecord convert(String json) throws IOException {
     return convert(mapper.readValue(json, Map.class), baseSchema);
   }
   
-  private GenericRecord convert(Map<String, Object> raw, Schema schema) {
+  private GenericRecord convert(Map<String, Object> raw, Schema schema)
+      throws IOException {
     GenericRecord result = new GenericData.Record(schema);
+    Set<String> usedFields = Sets.newHashSet();
     for (Schema.Field f : schema.getFields()) {
       String name = f.name();
       if (raw.containsKey(name)) {
-        result.put(f.name(), typeConvert(raw.get(name), name, f.schema()));
+        result.put(f.pos(), typeConvert(raw.get(name), name, f.schema()));
+        usedFields.add(name);
+      } else {
+        JsonNode defaultValue = f.defaultValue();
+        if (defaultValue == null) {
+          if (isNullableSchema(f.schema())) {
+            result.put(f.pos(), null);
+          } else {
+            throw new IllegalArgumentException(
+                "No default value provided for non-nullable field: " + f.name());
+          }
+        } else {
+          Schema fieldSchema = f.schema();
+          if (isNullableSchema(fieldSchema)) {
+            fieldSchema = getNonNull(fieldSchema);
+          }
+          Object value = null;
+          switch (fieldSchema.getType()) {
+          case BOOLEAN:
+            value = defaultValue.getValueAsBoolean();
+            break;
+          case DOUBLE:
+            value = defaultValue.getValueAsDouble();
+            break;
+          case FLOAT:
+            value = (float) defaultValue.getValueAsDouble();
+            break;
+          case INT:
+            value = defaultValue.getValueAsInt();
+            break;
+          case LONG:
+            value = defaultValue.getValueAsLong();
+            break;
+          case STRING:
+            value = defaultValue.getValueAsText();
+            break;
+          case MAP:
+            Map<String, Object> fieldMap = mapper.readValue(
+                defaultValue.getValueAsText(), Map.class);
+            Map<String, Object> mvalue = Maps.newHashMap();
+            for (Map.Entry<String, Object> e : fieldMap.entrySet()) {
+              mvalue.put(e.getKey(),
+                  typeConvert(e.getValue(), name, fieldSchema.getValueType()));
+            }
+            value = mvalue;
+            break;
+          case ARRAY:
+            List fieldArray = mapper.readValue(
+                defaultValue.getValueAsText(), List.class);
+            List lvalue = Lists.newArrayList();
+            for (Object elem : fieldArray) {
+              lvalue.add(typeConvert(elem, name, fieldSchema.getElementType()));
+            }
+            value = lvalue;
+            break;
+          case RECORD:
+            Map<String, Object> fieldRec = mapper.readValue(
+                defaultValue.getValueAsText(), Map.class);
+            value = convert(fieldRec, fieldSchema);
+            break;
+            default:
+              throw new IllegalArgumentException(
+                  "JsonConverter cannot handle type: " + fieldSchema.getType());
+          }
+          result.put(f.pos(), value);
+        }
       }
+    }
+    if (usedFields.size() < raw.size()) {
+      
     }
     return result;
   }
   
-  private Object typeConvert(Object value, String name, Schema schema) {
-    if (isNullSchema(schema)) {
+  private Object typeConvert(Object value, String name, Schema schema) throws IOException {
+    if (isNullableSchema(schema)) {
       if (value == null) {
         return null;
       } else {
@@ -126,7 +246,7 @@ public class JsonConverter {
     throw new JsonConversionException(value, name, schema);
   }
   
-  private boolean isNullSchema(Schema schema) {
+  private boolean isNullableSchema(Schema schema) {
     return schema.getType().equals(Schema.Type.UNION) &&
         schema.getTypes().size() == 2 &&
         (schema.getTypes().get(0).getType().equals(Schema.Type.NULL) ||
