@@ -68,7 +68,7 @@ public class JsonConverterTest {
   public void testMissingRequiredField() throws Exception {
     JsonConverter jc = new JsonConverter(sr(f1, f2, f3Rec));
     String json = "{\"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
-    GenericRecord r = jc.convert(json);
+    jc.convert(json);
   }
   
   @Test

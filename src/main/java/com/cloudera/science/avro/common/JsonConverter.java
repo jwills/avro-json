@@ -46,6 +46,7 @@ public class JsonConverter {
   
   private final ObjectMapper mapper = new ObjectMapper();
   private final Schema baseSchema;
+  private int logMessageCounter = 0;
   
   public JsonConverter(Schema schema) {
     this.baseSchema = checkSchema(schema, true);
@@ -165,9 +166,15 @@ public class JsonConverter {
         }
       }
     }
+    
     if (usedFields.size() < raw.size()) {
-      
+      // Log a notification about unused fields
+      if (logMessageCounter % 1000 == 0) {
+        LOG.warn("Ignoring unused JSON fields: " + Sets.difference(raw.keySet(), usedFields));
+      }
+      logMessageCounter++;
     }
+    
     return result;
   }
   
