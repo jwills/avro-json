@@ -30,41 +30,46 @@ import org.apache.hadoop.fs.Path;
 public class SchemaLoader {
   
   private final Configuration conf;
+  private final Schema.Parser parser = new Schema.Parser();
   
   public SchemaLoader(Configuration conf) {
     this.conf = conf;
   }
   
   public Schema load(String schemaJson, String schemaUrl) throws IOException {
-    Schema.Parser parser = new Schema.Parser();
     if (schemaJson != null && !"none".equals(schemaJson)) {
-      return parser.parse(schemaJson);
+      return loadLiteral(schemaJson);
+    } else if (schemaUrl != null && !"none".equals(schemaUrl)) {
+      return loadFromUrl(schemaUrl);
     } else {
-      if (schemaUrl == null || "none".equals(schemaUrl)) {
-        throw new IllegalArgumentException(
-            "Neither schemaJson nor schemaUrl specified to SchemaLoader");
-      }
-      
-      if (schemaUrl.toLowerCase().startsWith("hdfs://")) {
-        FileSystem fs = FileSystem.get(conf);
-        FSDataInputStream input = null;
-        try {
-          input = fs.open(new Path(schemaUrl));
-          return parser.parse(input);
-        } finally {
-          if (input != null) {
-            input.close();
-          }
+      throw new IllegalArgumentException("No valid schema information provided");
+    }
+  }
+  
+  public Schema loadLiteral(String schemaJson) throws IOException {
+    return parser.parse(schemaJson);
+  }
+  
+  public Schema loadFromUrl(String schemaUrl) throws IOException {
+    if (schemaUrl.toLowerCase().startsWith("hdfs://")) {
+      FileSystem fs = FileSystem.get(conf);
+      FSDataInputStream input = null;
+      try {
+        input = fs.open(new Path(schemaUrl));
+        return parser.parse(input);
+      } finally {
+        if (input != null) {
+          input.close();
         }
-      } else {
-        InputStream is = null;
-        try {
-          is = new URL(schemaUrl).openStream();
-          return parser.parse(is);
-        } finally {
-          if (is != null) {
-            is.close();
-          }
+      }
+    } else {
+      InputStream is = null;
+      try {
+        is = new URL(schemaUrl).openStream();
+        return parser.parse(is);
+      } finally {
+        if (is != null) {
+          is.close();
         }
       }
     }

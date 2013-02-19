@@ -53,3 +53,16 @@ Streaming Usage:
 	-mapper '/bin/cat' \
 	-input doctors.avro \
 	-output foo
+
+Streaming Over Multiple Files with Different Schemas (Make sure that the ordering of the
+arguments to input.schema.url corresponds to the ordering of the -input args to streaming):
+
+	hadoop jar hadoop-streaming-2.0.0-mr1-cdh4.1.2.jar \
+	-libjars avro-json-1.0-SNAPSHOT.jar \
+	-Dinput.schema.url=file:///schemas/doctors.avsc,file:///schemas/episodes.avsc \
+	-inputformat com.cloudera.science.avro.streaming.AvroAsJSONInputFormat \
+	-mapper '/bin/cat' \
+	-input /data/doctors.avro \
+	-input /data/episodes.avro \
+	-output multijson
+
