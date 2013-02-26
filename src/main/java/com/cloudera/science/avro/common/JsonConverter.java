@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -37,18 +38,25 @@ import com.google.common.collect.Sets;
 /**
  *
  */
-public class JsonConverter {
+public class JsonConverter<T extends GenericRecord> {
   private static final Log LOG = LogFactory.getLog(JsonConverter.class);
   private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(
       Schema.Type.RECORD, Schema.Type.ARRAY, Schema.Type.MAP,
       Schema.Type.INT, Schema.Type.LONG, Schema.Type.BOOLEAN,
-      Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.STRING);
+      Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.STRING,
+      Schema.Type.ENUM);
   
+  private final Class<T> typeClass;
   private final ObjectMapper mapper = new ObjectMapper();
   private final Schema baseSchema;
   private int logMessageCounter = 0;
   
   public JsonConverter(Schema schema) {
+    this(null, schema);
+  }
+  
+  public JsonConverter(Class<T> clazz, Schema schema) {
+    this.typeClass = clazz;
     this.baseSchema = checkSchema(schema, true);
   }
   
@@ -87,13 +95,14 @@ public class JsonConverter {
     return schema;
   }
   
-  public GenericRecord convert(String json) throws IOException {
+  public T convert(String json) throws IOException {
     return convert(mapper.readValue(json, Map.class), baseSchema);
   }
   
-  private GenericRecord convert(Map<String, Object> raw, Schema schema)
+  private T convert(Map<String, Object> raw, Schema schema)
       throws IOException {
-    GenericRecord result = new GenericData.Record(schema);
+    GenericRecord result = typeClass == null ? new GenericData.Record(schema) :
+      ReflectionUtils.newInstance(typeClass, null);
     Set<String> usedFields = Sets.newHashSet();
     for (Schema.Field f : schema.getFields()) {
       String name = f.name();
@@ -175,7 +184,7 @@ public class JsonConverter {
       logMessageCounter++;
     }
     
-    return result;
+    return (T) result;
   }
   
   private Object typeConvert(Object value, String name, Schema schema) throws IOException {
@@ -230,6 +239,13 @@ public class JsonConverter {
       break;
     case STRING:
       return value.toString();
+    case ENUM:
+      try {
+        Class<Enum> enumType = (Class<Enum>) Class.forName(schema.getFullName());
+        return Enum.valueOf(enumType, value.toString());
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
     case RECORD:
       return convert((Map<String, Object>) value, schema);
     case ARRAY:
