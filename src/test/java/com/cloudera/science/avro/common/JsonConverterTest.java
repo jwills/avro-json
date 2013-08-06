@@ -79,7 +79,7 @@ public class JsonConverterTest {
     String json = "{\"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
     jc.convert(json);
   }
-  
+
   @Test
   public void testMissingNullableField() throws Exception {
     Schema optional = Schema.createUnion(
@@ -89,6 +89,21 @@ public class JsonConverterTest {
     String json = "{\"field1\": 1729, \"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}}";
     GenericRecord r = jc.convert(json);
     String expect = "{\"field1\": 1729, \"field2\": [true, true, false], \"field3\": {\"key\": \"value\"}, \"field4\": null}";
+    assertEquals(expect, r.toString());
+    assertEquals(1L, qr.get(QualityReporter.TOP_LEVEL_GROUP, QualityReporter.TL_COUNTER_RECORD_HAS_MISSING_FIELDS));
+    assertEquals(0L, qr.get(QualityReporter.FIELD_MISSING_GROUP, "field1"));
+    assertEquals(1L, qr.get(QualityReporter.FIELD_MISSING_GROUP, "field4"));
+  }
+
+  @Test
+  public void testTreatNullAsMissing() throws Exception {
+    Schema optional = Schema.createUnion(
+        ImmutableList.of(Schema.create(Type.NULL), Schema.create(Type.DOUBLE)));
+    Schema.Field f4 = sf("field4", optional);
+    JsonConverter jc = new JsonConverter(sr(f1, f2, f4), qr);
+    String json = "{\"field1\": 1729, \"field2\": [true, true, false], \"field4\": null}";
+    GenericRecord r = jc.convert(json);
+    String expect = "{\"field1\": 1729, \"field2\": [true, true, false], \"field4\": null}";
     assertEquals(expect, r.toString());
     assertEquals(1L, qr.get(QualityReporter.TOP_LEVEL_GROUP, QualityReporter.TL_COUNTER_RECORD_HAS_MISSING_FIELDS));
     assertEquals(0L, qr.get(QualityReporter.FIELD_MISSING_GROUP, "field1"));

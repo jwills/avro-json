@@ -109,8 +109,9 @@ public class JsonConverter<T extends GenericRecord> {
     Set<String> missingFields = Sets.newHashSet();
     for (Schema.Field f : schema.getFields()) {
       String name = f.name();
-      if (raw.containsKey(name)) {
-        result.put(f.pos(), typeConvert(raw.get(name), name, f.schema()));
+      Object rawValue = raw.get(name);
+      if (rawValue != null) {
+        result.put(f.pos(), typeConvert(rawValue, name, f.schema()));
         usedFields.add(name);
       } else {
         missingFields.add(name);
