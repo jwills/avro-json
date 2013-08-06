@@ -16,6 +16,7 @@ package com.cloudera.science.avro.streaming;
 
 import java.io.IOException;
 
+import com.cloudera.science.avro.common.QualityReporter;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
@@ -30,6 +31,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
 
 import com.cloudera.science.avro.common.JsonConverter;
@@ -42,7 +44,8 @@ public class AvroAsJSONOutputFormat extends FileOutputFormat<Text, Text> {
   public static final String SCHEMA_LITERAL = "output.schema.literal";
   public static final String SCHEMA_URL = "output.schema.url";
   public static final String READ_KEY = "output.read.key";
-  
+  public static final String VALIDATE_KEY = "output.validate";
+
   private Schema schema;
   private JsonConverter converter;
   private boolean readKey = true;
@@ -53,10 +56,17 @@ public class AvroAsJSONOutputFormat extends FileOutputFormat<Text, Text> {
     if (schema == null) {
       SchemaLoader loader = new SchemaLoader(job);
       this.schema = loader.load(job.get(SCHEMA_LITERAL), job.get(SCHEMA_URL));
-      this.converter = new JsonConverter(schema);
       this.readKey = job.getBoolean(READ_KEY, true);
     }
-    
+
+    QualityReporter reporter;
+    if (job.getBoolean(VALIDATE_KEY, false) && progress instanceof Reporter) {
+      reporter = new QualityReporter((Reporter) progress);
+    } else {
+      reporter = new QualityReporter(); // Dummy, won't actually write counters
+    }
+    this.converter = new JsonConverter(schema, reporter);
+
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(
         new GenericDatumWriter<GenericRecord>(schema));
     if (getCompressOutput(job)) {

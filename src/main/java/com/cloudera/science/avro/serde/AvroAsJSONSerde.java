@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import com.cloudera.science.avro.common.QualityReporter;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde.Constants;
@@ -57,7 +58,7 @@ public class AvroAsJSONSerde implements SerDe {
     } catch (IOException e) {
       throw new SerDeException(e);
     }
-    this.converter = new JsonConverter(schema);
+    this.converter = new JsonConverter(schema, new QualityReporter());
     row.add("");
     
     String colName = tbl.getProperty(Constants.LIST_COLUMNS);

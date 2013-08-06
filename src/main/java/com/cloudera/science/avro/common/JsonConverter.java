@@ -47,17 +47,19 @@ public class JsonConverter<T extends GenericRecord> {
       Schema.Type.ENUM);
   
   private final Class<T> typeClass;
+  private final QualityReporter reporter;
   private final ObjectMapper mapper = new ObjectMapper();
   private final Schema baseSchema;
   private int logMessageCounter = 0;
   
-  public JsonConverter(Schema schema) {
-    this(null, schema);
+  public JsonConverter(Schema schema, QualityReporter reporter) {
+    this(null, schema, reporter);
   }
   
-  public JsonConverter(Class<T> clazz, Schema schema) {
+  public JsonConverter(Class<T> clazz, Schema schema, QualityReporter reporter) {
     this.typeClass = clazz;
     this.baseSchema = checkSchema(schema, true);
+    this.reporter = reporter;
   }
   
   private Schema checkSchema(Schema schema, boolean mustBeRecord) {
@@ -104,12 +106,14 @@ public class JsonConverter<T extends GenericRecord> {
     GenericRecord result = typeClass == null ? new GenericData.Record(schema) :
       ReflectionUtils.newInstance(typeClass, null);
     Set<String> usedFields = Sets.newHashSet();
+    Set<String> missingFields = Sets.newHashSet();
     for (Schema.Field f : schema.getFields()) {
       String name = f.name();
       if (raw.containsKey(name)) {
         result.put(f.pos(), typeConvert(raw.get(name), name, f.schema()));
         usedFields.add(name);
       } else {
+        missingFields.add(name);
         JsonNode defaultValue = f.defaultValue();
         if (defaultValue == null) {
           if (isNullableSchema(f.schema())) {
@@ -183,7 +187,8 @@ public class JsonConverter<T extends GenericRecord> {
       }
       logMessageCounter++;
     }
-    
+    reporter.reportMissingFields(missingFields);
+
     return (T) result;
   }
   

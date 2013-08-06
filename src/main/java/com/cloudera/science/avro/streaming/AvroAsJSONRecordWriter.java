@@ -29,8 +29,10 @@ public class AvroAsJSONRecordWriter implements RecordWriter<Text, Text> {
   private final DataFileWriter<GenericRecord> writer;
   private final JsonConverter converter;
   private final boolean readKey;
-  
-  public AvroAsJSONRecordWriter(DataFileWriter<GenericRecord> writer, JsonConverter converter, boolean readKey) {
+
+  public AvroAsJSONRecordWriter(DataFileWriter<GenericRecord> writer,
+                                JsonConverter converter,
+                                boolean readKey) {
     this.writer = writer;
     this.converter = converter;
     this.readKey = readKey;
@@ -38,7 +40,8 @@ public class AvroAsJSONRecordWriter implements RecordWriter<Text, Text> {
   
   @Override
   public void write(Text key, Text value) throws IOException {
-    writer.append(converter.convert(readKey ? key.toString() : value.toString()));
+    GenericRecord record = converter.convert(readKey ? key.toString() : value.toString());
+    writer.append(record);
   }
 
   @Override
