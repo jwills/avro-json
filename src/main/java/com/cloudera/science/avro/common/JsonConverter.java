@@ -116,7 +116,7 @@ public class JsonConverter<T extends GenericRecord> {
       } else {
         missingFields.add(name);
         JsonNode defaultValue = f.defaultValue();
-        if (defaultValue == null) {
+        if (defaultValue == null || defaultValue.isNull()) {
           if (isNullableSchema(f.schema())) {
             result.put(f.pos(), null);
           } else {

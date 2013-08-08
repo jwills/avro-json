@@ -21,6 +21,7 @@ import java.util.Arrays;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
+import org.codehaus.jackson.node.NullNode;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -31,7 +32,11 @@ public class JsonConverterTest {
   private static Schema.Field sf(String name, Schema schema) {
     return new Schema.Field(name, schema, "", null);
   }
-  
+
+  private static Schema.Field sfnull(String name, Schema schema) {
+    return new Schema.Field(name, schema, "", NullNode.getInstance());
+  }
+
   private static Schema.Field sf(String name, Schema.Type type) {
     return sf(name, sc(type));
   }
@@ -102,6 +107,21 @@ public class JsonConverterTest {
     Schema.Field f4 = sf("field4", optional);
     JsonConverter jc = new JsonConverter(sr(f1, f2, f4), qr);
     String json = "{\"field1\": 1729, \"field2\": [true, true, false], \"field4\": null}";
+    GenericRecord r = jc.convert(json);
+    String expect = "{\"field1\": 1729, \"field2\": [true, true, false], \"field4\": null}";
+    assertEquals(expect, r.toString());
+    assertEquals(1L, qr.get(QualityReporter.TOP_LEVEL_GROUP, QualityReporter.TL_COUNTER_RECORD_HAS_MISSING_FIELDS));
+    assertEquals(0L, qr.get(QualityReporter.FIELD_MISSING_GROUP, "field1"));
+    assertEquals(1L, qr.get(QualityReporter.FIELD_MISSING_GROUP, "field4"));
+  }
+
+  @Test
+  public void testNullDefaultValue() throws Exception {
+    Schema optional = Schema.createUnion(
+        ImmutableList.of(Schema.create(Type.NULL), Schema.create(Type.STRING)));
+    Schema.Field f4 = sfnull("field4", optional);
+    JsonConverter jc = new JsonConverter(sr(f1, f2, f4), qr);
+    String json = "{\"field1\": 1729, \"field2\": [true, true, false]}";
     GenericRecord r = jc.convert(json);
     String expect = "{\"field1\": 1729, \"field2\": [true, true, false], \"field4\": null}";
     assertEquals(expect, r.toString());
