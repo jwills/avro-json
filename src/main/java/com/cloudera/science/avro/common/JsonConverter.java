@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.logging.Log;
@@ -60,6 +61,7 @@ public class JsonConverter<T extends GenericRecord> {
     this.typeClass = clazz;
     this.baseSchema = checkSchema(schema, true);
     this.reporter = reporter;
+    assert SchemaBuilder.builder().booleanBuilder().endBoolean() != null;
   }
   
   private Schema checkSchema(Schema schema, boolean mustBeRecord) {
