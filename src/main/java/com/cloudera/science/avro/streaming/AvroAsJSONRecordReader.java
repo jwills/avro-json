@@ -82,7 +82,7 @@ public class AvroAsJSONRecordReader implements RecordReader<Text, Text> {
       return false;
     }
     datum = reader.next(datum);
-    key.set(datum.toString());
+    key.set(new String(datum.toString().getBytes("UTF-8"), "UTF-8"));
     return true;
   }
 }

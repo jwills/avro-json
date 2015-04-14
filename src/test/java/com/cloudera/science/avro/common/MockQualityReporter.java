@@ -14,12 +14,40 @@
  */
 package com.cloudera.science.avro.common;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
-import com.sun.tools.javac.util.Pair;
 
 import java.util.Map;
 
 public class MockQualityReporter extends QualityReporter {
+
+  public static class Pair<K, V> {
+    public static <S, T> Pair<S, T> of(S s, T t) {
+      return new Pair<S, T>(s, t);
+    }
+
+    private final K k;
+    private final V v;
+
+    public Pair(K k, V v) {
+      this.k = k;
+      this.v = v;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other != null && other instanceof Pair) {
+        Pair p = (Pair) other;
+        return Objects.equal(k, p.k) && Objects.equal(v, p.v);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return (k == null ? 0 : k.hashCode()) + 17 * (v == null ? 0 : v.hashCode());
+    }
+  }
 
   private Map<Pair<String, String>, Long> counts = Maps.newHashMap();
 

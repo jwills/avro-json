@@ -100,7 +100,7 @@ public class JsonConverter<T extends GenericRecord> {
   }
   
   public T convert(String json) throws IOException {
-    return convert(mapper.readValue(json, Map.class), baseSchema);
+    return (T) convert(mapper.readValue(json, Map.class), baseSchema);
   }
   
   private T convert(Map<String, Object> raw, Schema schema)
