@@ -45,6 +45,7 @@ public class QualityReporter {
   public void reportMissingFields(Collection<String> missingFieldNames) {
     if (!missingFieldNames.isEmpty()) {
       inc(TOP_LEVEL_GROUP, TL_COUNTER_RECORD_HAS_MISSING_FIELDS);
+      //Note:  The following can cause issues with very wide tables.
       for (String missingFieldName : missingFieldNames) {
         inc(FIELD_MISSING_GROUP, missingFieldName);
       }
