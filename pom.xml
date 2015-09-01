@@ -21,7 +21,7 @@
 
   <groupId>com.cloudera.science</groupId>
   <artifactId>avro-json</artifactId>
-  <version>1.5-PARQUET-${cdh.version}</version>
+  <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Avro/JSON InputFormat/OutputFormats and SerDes</name>
