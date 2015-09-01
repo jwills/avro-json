@@ -16,6 +16,7 @@ package com.cloudera.science.avro.streaming;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.HashMap;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.Path;
@@ -40,10 +41,9 @@ public class AvroAsJSONInputFormat extends FileInputFormat<Text, Text> {
   
   private List<Schema> schemas;
   private String[] inputPaths;
-  
-  @Override
-  public RecordReader<Text, Text> getRecordReader(InputSplit split, JobConf job, Reporter reporter)
-      throws IOException {
+
+
+  protected Schema getSplitSchema(InputSplit split, JobConf job) throws IOException {
     if (schemas == null) {
       loadSchemas(job);
     }
@@ -65,6 +65,14 @@ public class AvroAsJSONInputFormat extends FileInputFormat<Text, Text> {
       }
       schema = schemas.get(index);
     }
+    return schema;
+  }
+
+  @Override
+  public RecordReader<Text, Text> getRecordReader(InputSplit split, JobConf job, Reporter reporter)
+      throws IOException {
+    Schema schema = getSplitSchema(split, job);
+    FileSplit fs = (FileSplit) split;
     return new AvroAsJSONRecordReader(schema, job, fs);
   }
   
@@ -78,8 +86,12 @@ public class AvroAsJSONInputFormat extends FileInputFormat<Text, Text> {
     } else {
       String[] schemaUrls = job.getStrings(SCHEMA_URL);
       if (schemaUrls != null) {
+        HashMap<String, Schema> hmap = new HashMap<String, Schema>();
         for (String schemaUrl : schemaUrls) {
-          schemas.add(loader.loadFromUrl(schemaUrl));
+          if (!hmap.containsKey(schemaUrl)) {
+            hmap.put(schemaUrl, loader.loadFromUrl(schemaUrl));
+          }
+          schemas.add(hmap.get(schemaUrl));
         }
         if (schemaUrls.length > 1) {
           // Need to track input paths
