@@ -66,3 +66,16 @@ arguments to input.schema.url corresponds to the ordering of the -input args to 
 	-input /data/episodes.avro \
 	-output multijson
 
+Streaming input from Parquet file (Parquet output not yet supported):
+
+	hadoop jar hadoop-streaming-2.0.0-mr1-cdh4.1.2.jar \
+    -libjars avro-json-1.0-SNAPSHOT.jar \
+    -Dinput.schema.url=file:///doctors.avsc \
+    -Doutput.schema.url=file:///doctors.avsc \
+    -Dparquet.read.support.class=parquet.avro.AvroReadSupport \
+    -inputformat com.cloudera.science.avro.streaming.ParquetAsJSONInputFormat \
+    -outputformat com.cloudera.science.avro.streaming.AvroAsJSONOutputFormat \
+    -mapper '/bin/cat' \
+    -input doctors.avro \
+    -output foo
+

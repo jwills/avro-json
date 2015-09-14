@@ -100,7 +100,12 @@ public class JsonConverter<T extends GenericRecord> {
   }
   
   public T convert(String json) throws IOException {
-    return (T) convert(mapper.readValue(json, Map.class), baseSchema);
+    try {
+        return (T) convert(mapper.readValue(json, Map.class), baseSchema);
+    }
+    catch (IOException e) {
+        throw new IOException("Failed to parse as Json: "+ json + "\n\n" + e.getMessage());
+    }
   }
   
   private T convert(Map<String, Object> raw, Schema schema)
